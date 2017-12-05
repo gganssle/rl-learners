@@ -19,7 +19,7 @@ os.system('rm ../logs/PG/*')
 # run in speed mode with no display for training:
 #p = PLE(FlappyBird(), reward_values={"positive": 100.0, "loss": -10.0, "tick": 0.1,}, fps=30, display_screen=False, force_fps=True)
 # run with display for fun:
-p = PLE(FlappyBird(), reward_values={"positive": 1.0, "loss": -1.0, "tick": 0.1,}, fps=30, display_screen=True, force_fps=False)
+p = PLE(FlappyBird(), reward_values={"positive": 1.0, "loss": -1.0, "tick": 0.01,}, fps=30, display_screen=True, force_fps=False)
 
 p.init()
 
@@ -59,23 +59,24 @@ class agent():
 
 		# define weight matrices
 		w1 = tf.Variable(tf.random_normal([8,8,1,32], stddev=1), trainable=True, name='w1')
-		w2 = tf.Variable(tf.random_normal([4,4,32,64], stddev=1), trainable=True, name='w2')
-		w4 = tf.Variable(tf.random_normal([6400, 512], stddev=1), trainable=True, name='w4')
+		#w2 = tf.Variable(tf.random_normal([4,4,32,64], stddev=1), trainable=True, name='w2')
+		w4 = tf.Variable(tf.random_normal([3200, 512], stddev=1), trainable=True, name='w4')
 		w5 = tf.Variable(tf.random_normal([512, a_size], stddev=1), trainable=True, name='w5')
 
 		# bias vectors
-		b1 = tf.Variable(tf.random_normal([32], stddev=1), trainable=True, name='b1')
-		b2 = tf.Variable(tf.random_normal([64], stddev=1), trainable=True, name='b2')
-		b3 = tf.Variable(tf.random_normal([512], stddev=1), trainable=True, name='b3')
+		#b1 = tf.Variable(tf.random_normal([32], stddev=1), trainable=True, name='b1')
+		#b2 = tf.Variable(tf.random_normal([64], stddev=1), trainable=True, name='b2')
+		#b3 = tf.Variable(tf.random_normal([512], stddev=1), trainable=True, name='b3')
 
 		# trainable vars histogram summaries
 		tf.summary.histogram('w1_summ', w1)
-		tf.summary.histogram('w2_summ', w2)
+		#tf.summary.histogram('w2_summ', w2)
 		tf.summary.histogram('w4_summ', w4)
+		tf.summary.histogram('w5_summ', w5)
 
-		tf.summary.histogram('b1_summ', b1)
-		tf.summary.histogram('b2_summ', b2)
-		tf.summary.histogram('b3_summ', b3)
+		#tf.summary.histogram('b1_summ', b1)
+		#tf.summary.histogram('b2_summ', b2)
+		#tf.summary.histogram('b3_summ', b3)
 
 		# reward record
 		#self.local_reward = tf.reduce_sum(self.reward_holder)
@@ -83,7 +84,7 @@ class agent():
 
 		# build model
 		alpha = 0.2
-		
+		'''
 		with tf.name_scope('conv1'):
 		    conv1 = tf.nn.conv2d(self.state_in, filter=w1, strides=[1,1,1,1], padding='SAME')
 		    conv1b = tf.nn.leaky_relu(conv1 + b1, alpha=alpha)
@@ -97,6 +98,17 @@ class agent():
 		    dense1 = tf.nn.leaky_relu(tf.matmul(flat, w4) + b3, alpha=alpha)
 		with tf.name_scope('output'):
 		    self.output = tf.nn.softmax(tf.matmul(dense1, w5))
+		'''
+		'''
+		with tf.name_scope('conv1'):
+		    conv1 = tf.nn.conv2d(self.state_in, filter=w1, strides=[1,8,8,1], padding='SAME')
+		with tf.name_scope('flatten'):
+		    flat = tf.reshape(conv1, [-1, 3200])
+		    dense1 = tf.nn.leaky_relu(tf.matmul(flat, w4), alpha=alpha)
+		with tf.name_scope('output'):
+		    self.output = tf.nn.softmax(tf.matmul(dense1, w5))
+		'''
+
 		'''
 		new_w1 = tf.get_variable("W1", shape=[2,2,1,32], initializer=tf.contrib.layers.xavier_initializer(), trainable=True)
 		#new_w1 = tf.Variable(tf.random_normal([16,16,1,32], stddev=1), trainable=True, name='new_w1')
@@ -143,7 +155,7 @@ class agent():
         
 # init
 tf.reset_default_graph()
-myAgent = agent(lr=0.01, s_size=80, a_size=2)
+myAgent = agent(lr=0.001, s_size=80, a_size=2)
 init = tf.global_variables_initializer()
 
 with tf.Session() as sess:
