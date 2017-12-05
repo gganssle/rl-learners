@@ -17,18 +17,18 @@ os.system('rm ../logs/PG/*')
 ##################################################################
 
 # run in speed mode with no display for training:
-p = PLE(FlappyBird(), reward_values={"positive": 1.0, "loss": -1.0, "tick": 0.1,}, fps=30, display_screen=False, force_fps=True)
+#p = PLE(FlappyBird(), reward_values={"positive": 100.0, "loss": -10.0, "tick": 0.1,}, fps=30, display_screen=False, force_fps=True)
 # run with display for fun:
-#p = PLE(FlappyBird(), reward_values={"positive": 1.0, "loss": -1.0, "tick": 0.0,}, fps=30, display_screen=True, force_fps=False)
+p = PLE(FlappyBird(), reward_values={"positive": 1.0, "loss": -1.0, "tick": 0.1,}, fps=30, display_screen=True, force_fps=False)
 
 p.init()
 
 #init
 gamma = 0.99
-total_episodes = 10000
+total_episodes = 1000
 max_ep = 999999
 update_frequency = 2
-stknm = 4
+stknm = 2
 
 # forward discount reward function
 def discount_rewards(r):
@@ -82,20 +82,37 @@ class agent():
 		#tf.summary.scalar('reward', local_reward)
 
 		# build model
+		alpha = 0.2
+		
 		with tf.name_scope('conv1'):
 		    conv1 = tf.nn.conv2d(self.state_in, filter=w1, strides=[1,1,1,1], padding='SAME')
-		    conv1b = tf.nn.relu(conv1 + b1)
+		    conv1b = tf.nn.leaky_relu(conv1 + b1, alpha=alpha)
 		    pool1 = tf.nn.max_pool(conv1b, ksize=[1,4,4,1], strides=[1,4,4,1], padding='SAME')
 		with tf.name_scope('conv2'):
 		    conv2 = tf.nn.conv2d(pool1, filter=w2, strides=[1,1,1,1], padding='SAME')
-		    conv2b = tf.nn.relu(conv2 + b2)
+		    conv2b = tf.nn.leaky_relu(conv2 + b2, alpha=alpha)
 		    pool2 = tf.nn.max_pool(conv2b, ksize=[1,2,2,1], strides=[1,2,2,1], padding='SAME')
 		with tf.name_scope('flatten'):
 		    flat = tf.reshape(pool2, [-1, 6400])
-		    dense1 = tf.nn.relu(tf.matmul(flat, w4) + b3)
+		    dense1 = tf.nn.leaky_relu(tf.matmul(flat, w4) + b3, alpha=alpha)
 		with tf.name_scope('output'):
 		    self.output = tf.nn.softmax(tf.matmul(dense1, w5))
-        
+		'''
+		new_w1 = tf.get_variable("W1", shape=[2,2,1,32], initializer=tf.contrib.layers.xavier_initializer(), trainable=True)
+		#new_w1 = tf.Variable(tf.random_normal([16,16,1,32], stddev=1), trainable=True, name='new_w1')
+		new_w2 = tf.get_variable("W2", shape=[51200,2], initializer=tf.contrib.layers.xavier_initializer(), trainable=True)
+		#new_w2 = tf.Variable(tf.random_normal([3200,2], stddev=1), trainable=True, name='new_w1')
+		tf.summary.histogram('w1', new_w1)
+		tf.summary.histogram('w2', new_w2)
+		with tf.name_scope('conv1'):
+		    conv1 = tf.nn.conv2d(self.state_in, filter=new_w1, strides=[1,1,1,1], padding='SAME')
+		    pool1 = tf.nn.max_pool(conv1, ksize=[1,2,2,1], strides=[1,2,2,1], padding='SAME')
+		with tf.name_scope('flatten'):
+		    flat = tf.reshape(pool1, [-1, 51200])
+		with tf.name_scope('output'):
+		    self.output = tf.nn.softmax(tf.matmul(flat, new_w2))
+		'''
+
 		# calculate loss
 		with tf.name_scope('loss_op'):
 		    self.indexes = tf.range(0, tf.shape(self.output)[0]) * tf.shape(self.output)[1] + self.action_holder
@@ -167,6 +184,8 @@ with tf.Session() as sess:
             a = np.argmax(a_dist == a)
             a = a * 119
             
+            #print(sess.run(myAgent.output, feed_dict={myAgent.state_in:s}))
+
             # act on environment and observe the reward and new state
             r = p.act(a)
             frame_buffer = np.roll(frame_buffer, -1, axis=3)
@@ -182,14 +201,15 @@ with tf.Session() as sess:
                 ep_history[:,2] = discount_rewards(ep_history[:,2])
                 feed_dict={myAgent.reward_holder:ep_history[:,2],
                         myAgent.action_holder:ep_history[:,1],myAgent.state_in:np.vstack(ep_history[:,0])}
-                
+
                 #sess.run(myAgent.local_reward, feed_dict=feed_dict)
 
                 # calculate gradients
                 grads = sess.run(myAgent.gradients, feed_dict=feed_dict)
-                
+
                 #################
-                print(np.amax(grads[0]), np.amax(grads[1]), np.amax(grads[2]), np.amax(grads[3]), 'running reward = ', running_reward)
+                #print(np.amax(grads[0]), np.amax(grads[1]), np.amax(grads[2]), np.amax(grads[3]), np.amax(grads[4]), np.amax(grads[5]), np.amax(grads[6]), 'running reward = ', running_reward)
+                print(np.amax(grads[0]), np.amax(grads[1]), 'running reward = ', running_reward)
                 #print('\n\n', grads, '\n\n')
                 #print(sess.run(myAgent.loss, feed_dict=feed_dict))
                 #if i == 0: print(sess.run(myAgent.varry, feed_dict=feed_dict))
